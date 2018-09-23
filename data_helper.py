@@ -14,6 +14,7 @@ from allennlp.data import Vocabulary, Instance
 from allennlp.data.fields.text_field import TextField
 from allennlp.data.dataset import Batch
 import torch
+import random
 
 PAD = Constant.pad
 UNKNOWN = Constant.unk
@@ -244,6 +245,27 @@ def pad_batch_squad(batch, padid=0):
     span_starts = torch.LongTensor(span_starts)
     span_ends = torch.LongTensor(span_ends)
     return passages, questions, passage_chars, question_chars, span_starts, span_ends
+
+
+def get_dataset(word2idx, char2idx, serialized_file, opt, lower_word=True):
+    '''read serialzed [SquadData] data from a file
+    Args:
+        word2idx --
+        char2idx --
+        serialized_file --
+        opt --
+        lower_word --
+    Returns:
+        dataset -- [SquadData]. idx value, filtered
+    '''
+    dataset = read_data(serialized_file, lower_word)
+    dataset = filter_dataset(dataset,
+                             opt.max_passage_len,
+                             opt.max_question_len,
+                             opt.max_answer_len,
+                             opt.max_word_len)
+    dataset = convert_dataset_to_idx(dataset, word2idx, char2idx)
+    return dataset
 
 
 def test_main():

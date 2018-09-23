@@ -12,7 +12,7 @@ from allennlp.data import Vocabulary
 from allennlp.data.dataset import Batch
 from allennlp.data.token_indexers import TokenCharactersIndexer, SingleIdTokenIndexer
 from allennlp.data.tokenizers.character_tokenizer import CharacterTokenizer
-from data import SquadData
+from data_helper import SquadData
 import argparse
 import torch
 from util import save_data_torch, load_data_torch
@@ -203,6 +203,6 @@ def read_squad_allennlp(file_path):
 
 if __name__ == '__main__':
     opt = get_config()
-    #preproc(opt.raw_file, opt.target_file)
-    build_vocab(opt.raw_file, opt.vocab_dir, opt.word_min_count, opt.char_min_count)
+    preproc(opt.raw_file, opt.target_file)
+    #build_vocab(opt.raw_file, opt.vocab_dir, opt.word_min_count, opt.char_min_count)
     #read_squad_allennlp(opt.raw_file)

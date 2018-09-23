@@ -33,6 +33,13 @@ def get_config():
     parser.add_argument("--max_word_len", type=int, default=16)
 
     parser.add_argument("--batch_size", type=int, default=2)
+    # EncoderBlock's input and output size
+    parser.add_argument("--encode_size", type=int, default=128)
+
+    # dropout probability
+    parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument("--dropout_char", type=float, default=0.05)
+
 
     opt = parser.parse_args()
     return opt

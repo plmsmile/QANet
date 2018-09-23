@@ -1,1 +1,1 @@
-# QANet pytorch implmentation
+# QANet PyTorch implementation
