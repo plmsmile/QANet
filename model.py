@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from layers import InputEmbedding, DepthwiseSeparableConv, EncoderBlocks, CoAttention
 from layers import get_seq_pad_mask, mask_logits
+from data_helper import pad_batch_squad
 
 
 class QANet(nn.Module):
@@ -97,3 +98,24 @@ class QANet(nn.Module):
         prob_start = F.softmax(score_start, dim=1)
         prob_end = F.softmax(score_end, dim=1)
         return prob_start, prob_end
+
+    @staticmethod
+    def batch_input_train(squad_list, device=torch.device("cpu"), padid=0):
+        '''make model inputs data
+        Args:
+            squad_list --
+            device -- cpu or gpu data
+        Returns:
+            inputs -- p, q, pch, qch
+            span_starts -- [b]
+            span_ends -- [b]
+            qids -- [b]
+        '''
+        res = pad_batch_squad(squad_list, padid)
+        tensors, qids = res[:-1], res[-1]
+        inputs = [tensor.to(device) for tensor in tensors]
+        passages, questions, passage_chars, question_chars, span_starts, span_ends = inputs
+        inputs = [passages, questions, passage_chars, question_chars]
+        return inputs, span_starts, span_ends, qids
+
+

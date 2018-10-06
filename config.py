@@ -55,12 +55,18 @@ def get_config():
 
 
 def add_train_args(parser):
+    # runrime environment
     runtime = parser.add_argument_group("Envioronment")
-
     runtime.add_argument("--batch_size", type=int, default=16)
     runtime.add_argument("--use_cuda", type="bool", default=True)
-    runtime.add_argument("--gpu", type=int, default=1)
+    runtime.add_argument("--gpu", type=int, default=0)
     runtime.add_argument("--random_seed", type=int, default=19940620)
+
+    # files
+    files = parser.add_argument_group("FileSystem")
+    files.add_argument("--model_name", type=str, default="qanet")
+    files.add_argument("--out_dir", type=str, default="out")
+    files.add_argument("--run_id", type=str, default="default")
 
 
 

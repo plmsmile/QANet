@@ -2,13 +2,14 @@
 #-*-coding: utf8-*-
 
 '''
-some data utils
+some util method
 @author: plm
 @create: 2018-09-05 (Wednesday)
 @modified: 2018-09-05 (Wednesday)
 '''
 
 import torch
+import numpy as np
 
 
 def save_data_torch(data_object, target_file_path):
@@ -91,6 +92,60 @@ def read_item2idx_from_file(item2idx_file, split_char=" "):
         cnt = int(cnt)
         item2idx[item] = cnt
     return item2idx
+
+
+def get_span_from_probs(prob_start, prob_end, topn=1, maxlen=None):
+    '''take argmax of constrained prob_start*prob_end
+    Args:
+        prob_start -- [b, slen]
+        prob_end -- [b, slen]
+        topn -- best topn span
+        maxlen -- max span length to consider
+    Returns:
+        pred_span -- [spans], len=batch_size, spans=[(start, end)], len=topn
+        pred_score -- [scores], len=batch_size, scores=[score], len=topn
+    '''
+    batch_size, slen = prob_start.size()
+    pred_span = []
+    pred_score = []
+    maxlen = maxlen or slen
+    for i in range(batch_size):
+        # [slen, slen]
+        scores = torch.ger(prob_start[i], prob_end[i])
+        # keep upper triangular start<=end
+        scores = scores.triu()
+        # keep lower triangular end-start+1<=maxlen
+        scores = scores.tril(maxlen - 1)
+        scores_flat = scores.detach().cpu().numpy().flatten()
+
+        # score topn's index, desc sort
+        idx_sort = None
+        if topn == 1:
+            # top 1
+            idx = np.argmax(scores_flat)
+            idx_sort = [idx]
+        elif slen < topn:
+            # top slen
+            idx_sort = np.argsort(scores_flat)
+        else:
+            # topn
+            # idxs = np.argpartition(scores_flat, -topn)[-topn:]
+            idxs = np.argpartition(-scores_flat, topn)[0:topn]
+            idx_sort = idxs[np.argsort(-scores_flat[idxs])]
+        start_idx, end_idx = np.unravel_index(idx_sort, scores.shape)
+        start_end = list(zip(start_idx, end_idx))
+        scores_top = scores_flat[idx_sort]
+        pred_span.append(start_end)
+        pred_score.append(scores_top)
+    return pred_span, pred_score
+
+
+def set_random_seed(seed, cuda=False):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    if cuda:
+        torch.cuda.manual_seed(seed)
 
 
 if __name__ == '__main__':
