@@ -13,6 +13,11 @@ import torch.nn as nn
 
 data = [[1, 2, 3], [4, 5, 6]]
 
+
+def get_tensor():
+    return torch.Tensor(data)
+
+
 def test_conv1d():
     '''conv1d'''
     in_channels = 8
@@ -189,7 +194,55 @@ def test_logsoftmax():
     print (func(x))
 
 
+def test_l1loss():
+    loss = nn.L1Loss(reduction="elementwise_mean")
+    # input = torch.randn(3, 5, requires_grad=True)
+    input = torch.randn(3, 5, requires_grad=False)
+    target = torch.randn(3, 5)
+    output = loss(input, target)
+    print (output)
+    # output.backward()
 
+
+def test_ger():
+    '''two vector's product, n, m, return n*m'''
+    v1 = torch.Tensor([1, 2])
+    v2 = torch.Tensor([1, 2, 3])
+    # [2, 3]
+    res = torch.ger(v1, v2)
+    print (res)
+
+
+def test_tril():
+    '''keep the lower triangular part
+    Args:
+        input -- 2-D tensor
+        dagonal -- 0 -- default, on and below the main dagonal
+        dagonal -- 1 -- main dagonal adds 1, move up
+        dagonal -- 2 -- main dagonal adds 2, move up
+        dagonal -- -1 -- main dagonal sub 1, move down
+        dagonal -- -2 -- main dagonal sub 2, move down
+    '''
+    a = torch.randn(6, 6)
+    print ("---raw----")
+    print (a)
+    print ("---tril 0----")
+    print (a.tril())
+    print ("---tril 3----")
+    print (a.tril(3))
+    # print (b)
+    # print (a.tril(1))
+    # print (a.tril(2))
+    # print (a.tril(-1))
+    # print (a.tril(-2))
+
+
+def test_triu():
+    '''keep up the upper triangular part'''
+    a = torch.randn(4, 4)
+    b = a.triu()
+    print (b)
+    print (b.triu(1))
 
 
 if __name__ == '__main__':
@@ -209,4 +262,8 @@ if __name__ == '__main__':
     # test_mul()
     # test_transpose_permute()
     # test_matrix_mask()
-    test_logsoftmax()
+    # test_logsoftmax()
+    # test_l1loss()
+    # test_ger()
+    test_tril()
+    # test_triu()

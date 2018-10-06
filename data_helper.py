@@ -28,7 +28,12 @@ class SquadData(object):
                  span_start,
                  span_end,
                  passage_char = None,
-                 question_char = None
+                 question_char = None,
+                 question_id = None,
+                 passage_text = None,
+                 question_text = None,
+                 answer_text = None,
+                 passage_token_offsets = None,
                  ):
         '''
         Args:
@@ -45,6 +50,11 @@ class SquadData(object):
         self.span_end = span_end
         self.passage_char = passage_char
         self.question_char = question_char
+        self.question_id = question_id
+        self.passage_text = passage_text
+        self.question_text = question_text
+        self.answer_text = answer_text
+        self.passage_token_offsets = passage_token_offsets
 
 
 def get_shared_from_dir_allennlp(vocab_dir):
@@ -73,7 +83,7 @@ def get_tokens_idxs(tokens, token2idx):
     return token_idxs
 
 
-def read_data(file_path, lower_word=True):
+def load_squad_from_file(file_path, lower_word=True):
     ''' load [SquadData] from file.
     Args:
         file_path -- pkl file path. made by prepro.py prepro function
@@ -91,12 +101,26 @@ def read_data(file_path, lower_word=True):
 
 
 def convert_dataset_to_idx(dataset, word2idx, char2idx):
+    ''' convert squad object's tokens to token_idxs
+    Args:
+        dataset -- [SquadData]
+        word2idx --
+        char2idx --
+    Returns:
+        dataset -- [SquadData]
+    '''
     for squad in dataset:
         squad.passage = get_tokens_idxs(squad.passage, word2idx)
         squad.question = get_tokens_idxs(squad.question, word2idx)
         passage_char = [get_tokens_idxs(chs, char2idx) for chs in squad.passage_char]
         question_char = [get_tokens_idxs(chs, char2idx) for chs in squad.question_char]
         squad.passage_char, squad.question_char = passage_char, question_char
+
+        # remove some useless info
+        squad.passage_text = None
+        squad.question_text = None
+        squad.answer_text = None
+        squad.passage_token_offsets = None
     return dataset
 
 
@@ -165,7 +189,7 @@ def _pad_list(dataset, padid=0):
     for i in range(len(dataset)):
         clen = len(dataset[i])
         real_lens.append(clen)
-        gap = max_len- clen
+        gap = max_len - clen
         if gap > 0:
             dataset[i] = dataset[i] + [padid]*gap
     return dataset, real_lens
@@ -216,6 +240,7 @@ def pad_batch_squad(batch, padid=0):
         question_chars --
         span_starts --
         span_ends --
+        question_ids --
     '''
     passages = []
     passage_chars = []
@@ -224,13 +249,15 @@ def pad_batch_squad(batch, padid=0):
     span_starts = []
     span_ends = []
 
+    question_ids = []
     for squad in batch:
-        passages.append(squad.passage)
-        questions.append(squad.question)
-        passage_chars.append(squad.passage_char)
-        question_chars.append(squad.question_char)
+        passages.append(squad.passage.copy())
+        questions.append(squad.question.copy())
+        passage_chars.append(squad.passage_char.copy())
+        question_chars.append(squad.question_char.copy())
         span_starts.append(squad.span_start)
         span_ends.append(squad.span_end)
+        question_ids.append(squad.question_id)
 
     passages, passage_lens  = _pad_list(passages, padid)
     questions, question_lens = _pad_list(questions, padid)
@@ -244,10 +271,32 @@ def pad_batch_squad(batch, padid=0):
     passage_chars = torch.LongTensor(passage_chars)
     span_starts = torch.LongTensor(span_starts)
     span_ends = torch.LongTensor(span_ends)
-    return passages, questions, passage_chars, question_chars, span_starts, span_ends
+    return passages, questions, passage_chars, question_chars, span_starts, span_ends, question_ids
 
 
-def get_dataset(word2idx, char2idx, serialized_file, opt, lower_word=True):
+def get_qid2info(squad_list):
+    '''
+    Args:
+        squad_list -- [SquadData]
+    Returns:
+        qid2info -- {}, qid:info, info contains p-q-a raw text and passage token offsets
+    '''
+    qid2info = {}
+    for squad in squad_list:
+        qid = squad.question_id
+        item = {}
+        item['passage'] = squad.passage_text
+        item['question'] = squad.question_text
+        item['answer'] = squad.answer_text
+        item['passage_token_offsets'] = squad.passage_token_offsets
+        item['passage_tokens'] = squad.passage
+        item['question_tokens'] = squad.question
+        item['answer_tokens'] = squad.answer_text
+        qid2info[qid] = item
+    return qid2info
+
+
+def get_dataset_qid2info(word2idx, char2idx, serialized_file, opt, lower_word=True):
     '''read serialzed [SquadData] data from a file
     Args:
         word2idx --
@@ -257,33 +306,37 @@ def get_dataset(word2idx, char2idx, serialized_file, opt, lower_word=True):
         lower_word --
     Returns:
         dataset -- [SquadData]. idx value, filtered
+        qid2info -- {}, some raw info and passage token offsets
     '''
-    dataset = read_data(serialized_file, lower_word)
-    dataset = filter_dataset(dataset,
-                             opt.max_passage_len,
-                             opt.max_question_len,
-                             opt.max_answer_len,
-                             opt.max_word_len)
-    dataset = convert_dataset_to_idx(dataset, word2idx, char2idx)
-    return dataset
+    squad_list = load_squad_from_file(serialized_file, lower_word)
+    squad_list = filter_dataset(squad_list,
+                                opt.max_passage_len,
+                                opt.max_question_len,
+                                opt.max_answer_len,
+                                opt.max_word_len)
+    qid2info = get_qid2info(squad_list)
+    dataset = convert_dataset_to_idx(squad_list, word2idx, char2idx)
+    return dataset, qid2info
 
 
 def test_main():
     opt = get_config()
     word2idx = util.read_item2idx_from_file(opt.word2idx_path)
     char2idx = util.read_item2idx_from_file(opt.char2idx_path)
-    train_dataset = read_data(opt.train_file, opt.lower_word)
-    train_dataset = filter_dataset(train_dataset,
-                                   opt.max_passage_len,
-                                   opt.max_question_len,
-                                   opt.max_answer_len,
-                                   opt.max_word_len)
+    train_dataset, train_qid2info = get_dataset_qid2info(
+                    word2idx, char2idx, opt.train_file, opt, opt.lower_word)
     train_dataset = convert_dataset_to_idx(train_dataset, word2idx, char2idx)
     train_data_loader = get_data_loader(train_dataset, opt.batch_size)
     for batch in train_data_loader:
         res = pad_batch_squad(batch, Constant.padid)
         for tensor in res:
             print (tensor.shape)
+            break
+        break
+
+    for qid, info in train_qid2info.items():
+        print (qid)
+        print (info)
         break
 
 

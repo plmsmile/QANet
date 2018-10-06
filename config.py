@@ -10,8 +10,14 @@
 import argparse
 
 
+def str2bool(v):
+    return v.lower() in ('yes', 'true', 't', '1', 'y')
+
+
 def get_config():
     parser = argparse.ArgumentParser()
+    parser.register("type", 'bool', str2bool)
+
     # train file
     parser.add_argument("--train_file",
                         type=str,
@@ -32,7 +38,6 @@ def get_config():
     parser.add_argument("--max_answer_len", type=int, default=30)
     parser.add_argument("--max_word_len", type=int, default=16)
 
-    parser.add_argument("--batch_size", type=int, default=2)
     # EncoderBlock's input and output size
     parser.add_argument("--encode_size", type=int, default=128)
 
@@ -40,9 +45,23 @@ def get_config():
     parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--dropout_char", type=float, default=0.05)
 
+    # optimizer
+    parser.add_argument("--n_warmup_steps", type=int, default=4000)
 
+
+    add_train_args(parser)
     opt = parser.parse_args()
     return opt
+
+
+def add_train_args(parser):
+    runtime = parser.add_argument_group("Envioronment")
+
+    runtime.add_argument("--batch_size", type=int, default=16)
+    runtime.add_argument("--use_cuda", type="bool", default=True)
+    runtime.add_argument("--gpu", type=int, default=1)
+    runtime.add_argument("--random_seed", type=int, default=19940620)
+
 
 
 class Constant(object):

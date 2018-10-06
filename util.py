@@ -14,14 +14,14 @@ import torch
 def save_data_torch(data_object, target_file_path):
     '''serialize a object to a file'''
     torch.save(data_object, target_file_path)
-    log("torch save {} datas to {}".format(len(data_object), target_file_path))
+    # log("torch save {} datas to {}".format(len(data_object), target_file_path))
     return
 
 
 def load_data_torch(data_file_path):
     '''deserialize a object from a file'''
     data_object = torch.load(data_file_path)
-    log("torch load {} datas from {}".format(len(data_object), data_file_path))
+    # log("torch load {} datas from {}".format(len(data_object), data_file_path))
     return data_object
 
 

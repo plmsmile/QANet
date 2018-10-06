@@ -103,6 +103,12 @@ def get_squad_from_rawfile(squad_file_path, need_char=False):
         span_start = instance.fields['span_start'].sequence_index
         span_end = instance.fields['span_end'].sequence_index
         item = SquadData(passage, question, span_start, span_end)
+        meta = instance.fields['metadata'].metadata
+        item.question_id = meta['question_id']
+        item.passage_text = meta['original_passage']
+        item.question_text = meta['question_text']
+        item.answer_text = meta['answer_texts'][0]
+        item.passage_token_offsets = meta['token_offsets']
         dataset.append(item)
     print ("read {} datas from {}".format(len(dataset), squad_file_path))
     if need_char == True:

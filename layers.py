@@ -21,7 +21,7 @@ def get_seq_pad_mask(seq, padid=0):
     Returns:
         pad_mask -- [b, slen]. pad is 1, nopad is 0.
     '''
-    pad_mask = seq.eq(padid).byte()
+    pad_mask = seq.eq(padid).float()
     return pad_mask
 
 
@@ -37,13 +37,13 @@ def get_matrix_mask(seq1_mask, seq2_mask):
     # pad is 0, nopad is 1
     seq1_keep = 1 - seq1_mask.unsqueeze(-1)
     seq2_keep = 1 - seq2_mask.unsqueeze(-1).transpose(1, 2)
-    matrix_keep = torch.bmm(seq1_keep, seq2_keep).byte()
+    matrix_keep = torch.bmm(seq1_keep, seq2_keep)
     # pad is 1, nopad is 0
     matrix_mask = 1 - matrix_keep
     return matrix_mask
 
 
-def mask_logits(target, mask, mask_value=-1e20):
+def mask_logits(target, mask, mask_value=-1e7):
     '''mask target tensor
     Args:
         target -- tensor
@@ -51,7 +51,8 @@ def mask_logits(target, mask, mask_value=-1e20):
     Returns:
         target_new --
     '''
-    return target.masked_fill_(mask, mask_value)
+    # return target.masked_fill_(mask, mask_value)
+    return target * (1 - mask) + mask * mask_value
 
 
 class DepthwiseSeparableConv(nn.Module):
@@ -71,7 +72,7 @@ class DepthwiseSeparableConv(nn.Module):
         self.is_1d = is_1d
         if is_1d is False:
             conv = nn.Conv2d
-        # depthwise conv. groupus=in_channels
+        # depthwise conv. groups=in_channels
         self.depthwise_conv = conv(in_channels,
                                    in_channels,
                                    kernel_size,
@@ -84,7 +85,7 @@ class DepthwiseSeparableConv(nn.Module):
                                    padding = 0,
                                    bias = bias)
 
-    def forward(self, inputs):
+    def forward(self, inputs, show=False):
         ''' depthwise + pointwise
         Args:
             inputs -- [b, seqlen, input_size] or [b, seqlen, wordlen, input_size]
@@ -96,6 +97,7 @@ class DepthwiseSeparableConv(nn.Module):
         else:
             inputs = inputs.permute(0, 3, 1, 2)
         depth_res = self.depthwise_conv(inputs)
+        depth_res = F.relu(depth_res)
         point_res = self.pointwise_conv(depth_res)
         if self.is_1d:
             point_res = point_res.permute(0, 2, 1)
@@ -193,10 +195,13 @@ class PositionalEncoder(nn.Module):
                 embed.append(t)
             mat.append(embed)
         # dim 2i
-        mat = torch.Tensor(mat)
+        # mat = torch.Tensor(mat)
+        mat = np.array(mat)
         mat[:, 0::2] = np.sin(mat[:, 0::2])
-        # dim 2i+1
+        # # dim 2i+1
         mat[:, 1::2] = np.cos(mat[:, 1::2])
+        mat = torch.Tensor(mat)
+        # mat = torch.FloatTensor(mat, requires_grad=False)
         self.pos_embedding = nn.Embedding.from_pretrained(mat, freeze=True)
 
     def forward(self, batch_size, seqlen):
@@ -207,7 +212,7 @@ class PositionalEncoder(nn.Module):
         Returns:
             pos_embeds -- [b, seqlen, embed_size]
         '''
-        pos_idx = torch.arange(0, seqlen)
+        pos_idx = torch.arange(0, seqlen).to("cuda:1")
         pos_idx = pos_idx.repeat(batch_size, 1)
         pos_embeds = self.pos_embedding(pos_idx)
         return pos_embeds
@@ -430,7 +435,6 @@ class EncoderBlocks(nn.Module):
         return outputs
 
 
-
 class CoAttention(nn.Module):
 
     def __init__(self, input_size):
@@ -519,7 +523,7 @@ class InputEmbedding(nn.Module):
                                              is_1d = False)
         self.highway = HighwayNetwork(2, word_embed_size + char_embed_size)
 
-    def forward(self, word_embeds, char_embeds):
+    def forward(self, word_embeds, char_embeds, show=False):
         '''
         Args:
             word_embeds -- [b, seqlen, word_embed_size]
@@ -530,7 +534,7 @@ class InputEmbedding(nn.Module):
         # 1. char embeds
         char_embeds = F.dropout(char_embeds, p=self.dropout_char, training=self.training)
         # [b, slen, wlen, dchar]
-        char_embeds = self.conv2d(char_embeds)
+        char_embeds = self.conv2d(char_embeds, show)
         char_embeds = F.relu(char_embeds)
         # [b, slen, dchar], choose the max char of every word
         char_embeds, idxs = torch.max(char_embeds, dim=2)

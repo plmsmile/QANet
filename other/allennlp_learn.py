@@ -12,6 +12,7 @@ from allennlp.data import Vocabulary
 from allennlp.data.dataset import Batch
 from allennlp.data.token_indexers import TokenCharactersIndexer, SingleIdTokenIndexer
 from config import get_config
+import allennlp
 
 
 def read_squad(file_path):
@@ -102,5 +103,6 @@ def test_read_squad(opt):
 
 
 if __name__ == '__main__':
-    opt = get_config()
-    test_read_squad(opt)
+    # opt = get_config()
+    # test_read_squad(opt)
+    print (allennlp.__path__)
