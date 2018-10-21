@@ -7,12 +7,15 @@
 @create: 2018-09-27 (星期四)
 @modified: 2018-09-27 (星期四)
 '''
+import sys
+sys.path.append("..")
 from allennlp.common.squad_eval import normalize_answer
 import torch
 import torch.optim as optim
 import torch.nn as nn
 from layers import DepthwiseSeparableConv
 from util import load_data_torch
+import json
 
 def test():
     s = "i love a the you."
@@ -70,16 +73,18 @@ def test_conv():
     for param in conv2d.parameters():
         print (param)
 
-
-
-
-
+def test_json():
+    d = {"best_step":2, "best_f1":89.2}
+    d_str = json.dumps(d, indent=4)
+    print (d_str)
+    json.dump(d_str, open("checkpoint", 'w'))
 
 
 if __name__ == '__main__':
     print ("hello")
     # test()
     # test_nn()
-    test_conv()
+    # test_conv()
+    test_json()
 
 

@@ -10,6 +10,8 @@ some util method
 
 import torch
 import numpy as np
+import random
+import time
 
 
 def save_data_torch(data_object, target_file_path):
@@ -30,15 +32,17 @@ def log(info):
     print ("[INFO] {}".format(info))
 
 
-def write_list_to_file(lines, target_file):
+def write_list_to_file(lines, target_file, append=False):
     '''write some standard lines to a file
     Args:
         lines --
         target_file --
+        append -- full-write or append-write
     Returns:
         None
     '''
-    with open(target_file, "w") as f:
+    mode = 'a' if append else 'w'
+    with open(target_file, mode) as f:
         for line in lines:
             f.write(line + "\n")
     log("write {} lines to {}".format(len(lines), target_file))
@@ -56,6 +60,44 @@ def read_list_from_file(source_file):
             lines.append(line)
     log("read {} lines from {}".format(len(lines), source_file))
     return lines
+
+
+def write_dict_to_file(d, target_file, split_char=" ", append=False):
+    '''write a simple dict to a file with lines. k v, k v
+    Args:
+        d -- dict, key=str, value=[str, int, float]
+        target_file --
+        split_char --
+        append -- full-write or append-write
+    Returns:
+        None
+    '''
+    lines = []
+    for k, v in d.items():
+        line = k + split_char + str(v)
+        lines.append(line)
+    write_list_to_file(lines, target_file, append)
+    return
+
+
+def read_dict_from_file(src_file, split_char=" ", vtype=str):
+    '''read a dict from a file
+    Args:
+        src_file --
+        split_char --
+        vtype -- value type, [str, int, float]
+    Returns:
+        d -- the dict
+    '''
+    lines = read_list_from_file(src_file)
+    d = {}
+    for line in lines:
+        k, v = line.split(split_char)
+        if k is None or v is None or v == "" or len(v) <= 0:
+            continue
+        v = vtype(v)
+        d[k] = v
+    return  d
 
 
 def write_item2idx_to_file(item2idx, target_file, split_char=" "):
@@ -83,15 +125,7 @@ def read_item2idx_from_file(item2idx_file, split_char=" "):
     Returns:
         item2idx -- dict
     '''
-    lines = read_list_from_file(item2idx_file)
-    item2idx = {}
-    for line in lines:
-        item, cnt = line.split(split_char)
-        if item is None or cnt is None or item == "" or len(cnt) <= 0:
-            continue
-        cnt = int(cnt)
-        item2idx[item] = cnt
-    return item2idx
+    return read_dict_from_file(item2idx_file, split_char, int)
 
 
 def get_span_from_probs(prob_start, prob_end, topn=1, maxlen=None):
@@ -141,11 +175,63 @@ def get_span_from_probs(prob_start, prob_end, topn=1, maxlen=None):
 
 
 def set_random_seed(seed, cuda=False):
+    '''set random seed'''
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
     if cuda:
         torch.cuda.manual_seed(seed)
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+
+class Timer(object):
+    """Computes elapsed time."""
+
+    def __init__(self):
+        self.running = True
+        self.total = 0
+        self.start = time.time()
+
+    def reset(self):
+        self.running = True
+        self.total = 0
+        self.start = time.time()
+        return self
+
+    def resume(self):
+        if not self.running:
+            self.running = True
+            self.start = time.time()
+        return self
+
+    def stop(self):
+        if self.running:
+            self.running = False
+            self.total += time.time() - self.start
+        return self
+
+    def time(self):
+        if self.running:
+            return self.total + time.time() - self.start
+        return self.total
 
 
 if __name__ == '__main__':

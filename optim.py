@@ -13,7 +13,7 @@ import numpy as np
 class ScheduledOptimizer(object):
     '''a simple wrapper of pytorch optimizer, transformer optimizer style'''
 
-    def __init__(self, optimizer, dmodel, n_warmup_steps=4000):
+    def __init__(self, optimizer, dmodel=128, n_warmup_steps=4000):
         '''
         Args:
             optimizer -- a pytorch optimizer object
@@ -47,3 +47,21 @@ class ScheduledOptimizer(object):
         '''step with the inner optimizer'''
         self._update_learning_rate()
         self._optimizer.step()
+
+    def state_dict(self):
+        d = {'state_dict':self._optimizer.state_dict()}
+        params = {"n_warmup_steps":self.n_warmup_steps,
+                  "init_lr": self.init_lr,
+                  "current_step": self.current_step,}
+        d["params"] = params
+        return d
+
+    @staticmethod
+    def get_instance(optimizer, params):
+        instance = ScheduledOptimizer(optimizer)
+        instance.n_warmup_steps = params['n_warmup_steps']
+        instance.current_step = params['current_step']
+        instance.init_lr = params['init_lr']
+        return instance
+
+

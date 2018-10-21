@@ -195,13 +195,11 @@ class PositionalEncoder(nn.Module):
                 embed.append(t)
             mat.append(embed)
         # dim 2i
-        # mat = torch.Tensor(mat)
         mat = np.array(mat)
         mat[:, 0::2] = np.sin(mat[:, 0::2])
         # # dim 2i+1
         mat[:, 1::2] = np.cos(mat[:, 1::2])
         mat = torch.Tensor(mat)
-        # mat = torch.FloatTensor(mat, requires_grad=False)
         self.pos_embedding = nn.Embedding.from_pretrained(mat, freeze=True)
 
     def forward(self, batch_size, seqlen):
@@ -212,7 +210,7 @@ class PositionalEncoder(nn.Module):
         Returns:
             pos_embeds -- [b, seqlen, embed_size]
         '''
-        pos_idx = torch.arange(0, seqlen).to("cuda:1")
+        pos_idx = torch.arange(0, seqlen).to("cuda:0")
         pos_idx = pos_idx.repeat(batch_size, 1)
         pos_embeds = self.pos_embedding(pos_idx)
         return pos_embeds

@@ -20,6 +20,15 @@ class QANet(nn.Module):
     def __init__(self,
                  word_mat, char_mat, dropout, dropout_char, max_seqlen,
                  encode_size):
+        '''
+        Args:
+            word_mat --
+            char_mat --
+            dropout --
+            dropout_char --
+            max_seqlen --
+            encode_size --
+        '''
         super().__init__()
         freeze = True
         word_freeze = freeze
@@ -80,6 +89,7 @@ class QANet(nn.Module):
         # 3. attention layer
         attention, coattention = \
                 self.attention(passages, questions, passage_mask, question_mask)
+        # print ("-----coattention={}".format(coattention))
         # may add coattention, the paper doesn't
         concat_info = [passages, attention, passages * attention, passages * coattention]
         concat_info = torch.cat(concat_info, dim=2)
@@ -118,4 +128,15 @@ class QANet(nn.Module):
         inputs = [passages, questions, passage_chars, question_chars]
         return inputs, span_starts, span_ends, qids
 
+    @staticmethod
+    def get_instance(word_mat, char_mat, opt, state_dict=None):
+        model = QANet(word_mat, char_mat, opt.dropout, opt.dropout_char,
+                      opt.max_passage_len, opt.encode_size)
+        if state_dict is not None:
+            model.load_state_dict(state_dict)
+        return model
+
+    def get_paramaters(self):
+        params = filter(lambda param: param.requires_grad, self.parameters())
+        return params
 
